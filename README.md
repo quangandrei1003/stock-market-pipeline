@@ -1,49 +1,101 @@
-Overview
-========
+# Apple Stock Market Data Pipeline
 
-Welcome to Astronomer! This project was generated after you ran 'astro dev init' using the Astronomer CLI. This readme describes the contents of the project, as well as how to run Apache Airflow on your local machine.
+## Overview 
 
-Project Contents
-================
+An ETL data pipeline orchestrated with Airflow that pulls Apple stock market data from the Yahoo Finance API. The raw data is stored in MinIO (a self-hosted version of S3), formatted and transformed using PySpark, and finally loaded into a PostgreSQL data warehouse for reporting purposes. 
 
-Your Astro project contains the following files and folders:
+![Dashboard](img/dashboard.png)
 
-- dags: This folder contains the Python files for your Airflow DAGs. By default, this directory includes two example DAGs:
-    - `example_dag_basic`: This DAG shows a simple ETL data pipeline example with three TaskFlow API tasks that run daily.
-    - `example_dag_advanced`: This advanced DAG showcases a variety of Airflow features like branching, Jinja templates, task groups and several Airflow operators.
-- Dockerfile: This file contains a versioned Astro Runtime Docker image that provides a differentiated Airflow experience. If you want to execute other commands or overrides at runtime, specify them here.
-- include: This folder contains any additional files that you want to include as part of your project. It is empty by default.
-- packages.txt: Install OS-level packages needed for your project by adding them to this file. It is empty by default.
-- requirements.txt: Install Python packages needed for your project by adding them to this file. It is empty by default.
-- plugins: Add custom or community plugins for your project to this file. It is empty by default.
-- airflow_settings.yaml: Use this local-only file to specify Airflow Connections, Variables, and Pools instead of entering them in the Airflow UI as you develop DAGs in this project.
 
-Deploy Your Project Locally
-===========================
+## The Pipeline Flow
 
-1. Start Airflow on your local machine by running 'astro dev start'.
+![Dashboard](img/flow.png)
+
+## How to run
+
+### Prerequisite
+
+Make sure that you installed the following items on your machine. 
+
+- [Astro CLI](https://pages.github.com/)
+- Docker
+Astronomer is a managed platform and service that simplifies the deployment, scaling, and monitoring of Apache Airflow workflows.
+
+### Steps 
+
+1. **Start Airflowby running the following command**  
+   ```bash
+   astro dev start
 
 This command will spin up 4 Docker containers on your machine, each for a different Airflow component:
 
-- Postgres: Airflow's Metadata Database
-- Webserver: The Airflow component responsible for rendering the Airflow UI
-- Scheduler: The Airflow component responsible for monitoring and triggering tasks
-- Triggerer: The Airflow component responsible for triggering deferred tasks
+    - Postgres: Airflow's Metadata Database
+    - Webserver: The Airflow component responsible for rendering the Airflow UI
+    - Scheduler: The Airflow component responsible for monitoring and triggering tasks
+    - Triggerer: The Airflow component responsible for triggering deferred tasks
+    
+- Access the Airflow UI for your local Airflow project. To do so, go to http://localhost:8080/ and log in with 'admin' for both your Username and Password. Astro automatically exposed Webserver at port 8080 and Postgres at 5432, If all of them are already allocated, change to alternative port in `docker-compose.override.yml`.
+### Adding Connections in the UI
 
-2. Verify that all 4 Docker containers were created by running 'docker ps'.
+After logging into the UI, add connections for the following three components: **Postgres**, **MinIO**, and the **Yahoo Finance API**. Follow these steps:
 
-Note: Running 'astro dev start' will start your project with the Airflow Webserver exposed at port 8080 and Postgres exposed at port 5432. If you already have either of those ports allocated, you can either stop your existing Docker containers or change the port.
+2. **Navigate to Connections**  
+   - Go to `Admin > Connections` and select the **Add a new connection** button.
 
-3. Access the Airflow UI for your local Airflow project. To do so, go to http://localhost:8080/ and log in with 'admin' for both your Username and Password.
+3. **Set Up Connections**
 
-You should also be able to access your Postgres Database at 'localhost:5432/postgres'.
+   #### 1. Yahoo Finance API
+   - **Connection ID**: `stock-api`  
+   - **Connection Type**: `HTTP`  
+   - **Host**: `https://query1.finance.yahoo.com`  
+   - **Extra**:  
+     ```json
+     {
+       "endpoint": "/v8/finance/chart/",
+       "headers": {
+         "content-type": "application/json",
+         "user-agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+       }
+     }
+     ```
 
-Deploy Your Project to Astronomer
-=================================
+   #### 2. Postgres
+   - **Connection ID**: `postgres`  
+   - **Connection Type**: `Postgres`  
+   - **Host**: `postgres`  
+   - **Login**: `postgres` (default value)  
+   - **Password**: `postgres` (default value)  
+   - **Port**: `5432` (or your custom port)  
 
-If you have an Astronomer account, pushing code to a Deployment on Astronomer is simple. For deploying instructions, refer to Astronomer documentation: https://docs.astronomer.io/cloud/deploy-code/
+   #### 3. MinIO
+   - **Connection ID**: `minio`  
+   - **Connection Type**: `Amazon Web Services`  
+   - **AWS Access Key ID**: `insert your key here`  
+     - The value in the Docker file is `yourkey`, but feel free to modify it.  
+     - Ensure this value matches the one in the Docker Compose file.  
+   - **AWS Secret Access Key**: `insert your key here`  
+     - The value in the Docker file is `yourpass`, but feel free to modify it.  
+     - Ensure this value matches the one in the Docker Compose file.  
+   - **Extra**:  
+     ```json
+     {
+       "endpoint_url": "http://minio:9000"
+     }
+     ```
+4. **Trigger the DAG on the UI**/
 
-Contact
-=======
-
-The Astronomer CLI is maintained with love by the Astronomer team. To report a bug or suggest a change, reach out to our support.
+   You can now trigger the DAG or modify the cron under `dags/stock_market.py`
+6. **See loaded date in Postgres**
+   Preview apple stock price data by running
+```sql
+SELECT
+    *
+FROM
+    stock_prices
+ORDER BY
+    date DESC
+LIMIT 10
+```
+7. **Do Analytics with Metabase**/
+   
+   Navigate to http://localhost:3000/ and start bulding your dashboard 🚀. 
