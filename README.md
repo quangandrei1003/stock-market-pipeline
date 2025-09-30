@@ -110,3 +110,4 @@ LIMIT 10
    Navigate to http://localhost:3000/ and start bulding your dashboard 🚀.
 
 Update readme from feature!
+Second update!
