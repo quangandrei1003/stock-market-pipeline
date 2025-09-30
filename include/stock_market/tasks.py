@@ -39,3 +39,6 @@ def _get_formatted_prices_from_minio():
     )
     csv_file = [obj for obj in objects if obj.object_name.endswith(".csv")][0]
     return f"s3://{csv_file.bucket_name}/{csv_file.object_name}"
+
+
+# hello this is my feauture
